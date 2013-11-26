@@ -1,0 +1,13 @@
+language: php
+services: mysql
+php: 
+  - 5.3
+  - 5.4
+
+before_script:
+  - curl -s http://getcomposer.org/installer | php
+  - php composer.phar install --dev
+  - mysql -e 'create database test_database;'
+  - cd app && php ../composer.phar install && cd ..
+
+script: phpunit
