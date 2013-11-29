@@ -2,7 +2,7 @@
 require_once __DIR__ . '/TestCase.php';
 
 class BasicModelTest extends TestCase {
-
+  
   public function testCreateNestedAssociation(){
     $this->createUserWithOrder();
     $user = User::first();
@@ -12,10 +12,14 @@ class BasicModelTest extends TestCase {
   public function testUpdateNestedAssociation(){
     $this->createUserWithOrder();
     $user = User::first();
-    echo "hello travis";
-    $user->fill(array('orders_attributes'=>array('id'=> 1, 'name'=> "other name")));
-    // $user->save();
-    // $this->assertTrue(Order::first()->name == 'other name');
+    $data = array(
+      'email' => 'doe@mail.com',
+      'orders_attributes' => array('id'=>1, 'name'=> 'other_name')
+      );
+    $user->fill($data);
+    $user->save();
+    $this->assertEquals(User::first()->email, 'doe@mail.com');
+    $this->assertEquals(Order::first()->name,'other name');
   }
 
   // // public function testBasicExample(){
@@ -25,7 +29,6 @@ class BasicModelTest extends TestCase {
   // //   echo $user;
   // //   $this->assertTrue($this->client->getResponse()->isOk());
   // // }
-
   
   private function createUserWithOrder(){
     $user = User::create(array(
