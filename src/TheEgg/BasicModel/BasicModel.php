@@ -1,4 +1,9 @@
-<?php namespace TheEgg\BasicModel;
+<?php 
+
+namespace TheEgg\BasicModel;
+
+use Illuminate\Support\Facades\DB;
+
 abstract class BasicModel extends \LaravelBook\Ardent\Ardent{
 
   static public $relationsData=array();
@@ -8,28 +13,32 @@ abstract class BasicModel extends \LaravelBook\Ardent\Ardent{
                         array $customMessages = array(),
                         array $options = array(),
                         Closure $beforeSave = null,
-                        Closure $afterSave = null,
-                        Closure $whileSave = null
-                        ) {
+                        Closure $afterSave = null) {
 
     $nested_attributes = $this->extractNestedAttributes();
-    try{\DB::connection()->getPdo()->beginTransaction();}catch(\PDOException $e){}
+
+    // Begin Transaction
+    try{DB::connection()->getPdo()->beginTransaction();}catch(\PDOException $e){}
     
-    try{
+    try {
       if(! parent::save())
-        throw new Exception('invalid parent');
+        throw new \Exception('invalid parent');
+
       $this->saveNestedAttributes($nested_attributes);
-      if($whileSave)
-        $whileSave($this);
-      try{\DB::connection()->getPdo()->commit();}catch(\PDOException $e){/*DO ABSOLUTELY NOTHING*/}
+
+      // Commit transaction
+      try{DB::connection()->getPdo()->commit();}catch(\PDOException $e){}
     }
-    catch(Exception $e){
-       // echo $this->errors();
-       // throw $e;
-       // dd($e);
-      try{\DB::connection()->getPdo()->rollBack();}catch(\PDOException $e){/*DO ABSOLUTELY NOTHING*/}
+    catch(\Exception $e) {
+      //echo $this->errors();
+      //throw $e;
+      //ddd('a');
+      
+      // Rollback if save failed
+      try{DB::connection()->getPdo()->rollBack();}catch(\PDOException $e){}
       return false;
     }
+
     return true;
   }
 
@@ -42,25 +51,23 @@ abstract class BasicModel extends \LaravelBook\Ardent\Ardent{
 
   function saveChild($relation, $attributes){
     if(isset($attributes['id'])){
-      // var_dump($attributes);die(0);
       $child = $this->{$relation}()->find($attributes['id']);
       if(! $child)
         return false;
       unset($attributes['id']);
-      if(isset($attributes['_destroy']))
+      if(isset($attributes['_destroy']) && $attributes['_destroy'])
         return $child->destroy($child->id);
       $child->fill($attributes);
       if( ! $child->save()){
         $this->validationErrors = $child->errors();
-        throw new Exception('invalid child');
+        throw new \Exception('invalid child');
       }
     }
     else{
       $child = $this->{$relation}()->create($attributes);
       if(! $child->save()){
-        echo $child;
         $this->validationErrors = $child->errors();
-        throw new Exception('invalid child'); 
+        throw new \Exception('invalid child'); 
       }
     }
   }
@@ -68,11 +75,13 @@ abstract class BasicModel extends \LaravelBook\Ardent\Ardent{
   protected function extractNestedAttributes(){
     $nested_attributes = static::$accept_nested_attributes;
     $result = array();
-    foreach($nested_attributes as $key=>$relation){
-      $field = $relation . '_attributes';      
-      if($this->{$field} !== NULL){
-        $result[$relation] = $this->{$field};
-        unset($this->{$field});
+    foreach($nested_attributes as $attributes) {
+      foreach($attributes as $key=>$field){
+        if($this->{$field} !== NULL){
+          $relation = camel_case(preg_replace('/_attributes/', '', $field));
+          $result[$relation] = $this->{$field};
+          unset($this->{$field});
+        }
       }
     }
     return $result;
@@ -84,14 +93,12 @@ abstract class BasicModel extends \LaravelBook\Ardent\Ardent{
     foreach($results as $key=>$r)
       if(!in_array($r['name'], $this->getFillable()))
         unset($results[$key]);
-    // echo "<pre>";
-    // print_r($results);
     return $results;
   }
 
   function getSchemaAttributes(){
     $table = $this->getTable();
-    $schema = \DB::getDoctrineSchemaManager($table);
+    $schema = DB::getDoctrineSchemaManager($table);
     $columns = $schema->listTableColumns($table);
     $result = array();
     foreach($columns as $column){
@@ -101,7 +108,7 @@ abstract class BasicModel extends \LaravelBook\Ardent\Ardent{
         "length" => $column->getLength(),
         "default" => $column->getDefault(),
         "form_builder_input" => $this->getInputHelper($column->getType()->getName())
-        );
+      );
     }
     return $result;
   }
@@ -131,7 +138,7 @@ abstract class BasicModel extends \LaravelBook\Ardent\Ardent{
       'decimal' => 'number',
       'float'   => 'number',
       'date'    => 'date'
-      );
+    );
     if(array_key_exists($type, $conversions))
       return $conversions[$type] . '_input';
     return 'text_input';
