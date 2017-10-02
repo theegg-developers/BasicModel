@@ -11,7 +11,7 @@
     "minimum-stability": "dev",
     "require": {
         "laravel/framework": "4.1.*",
-        "laravelbook/ardent": "2.5.0"
+        "laravelbook/ardent": "dev-master#8af3cf8cd3ea514c68439fdae0271af71ef1449e"
     },
     "autoload": {
         "psr-0": {
